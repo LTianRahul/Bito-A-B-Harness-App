@@ -96,17 +96,22 @@ Everyday Use below to actually get the fix (a plain `pull` isn't enough on its o
 ## Step 5 — Git hosting credentials (only if you use "fresh-clone" workspace mode)
 
 Arm A clones repos itself via `gh`/`glab` (both are preinstalled), so it needs one
-of them authenticated *inside the container*:
+of them authenticated *inside the container* — using each CLI's device-code flow,
+which prints a one-time code and a static URL you open on **any** browser on your
+machine, then polls for you to authorize. No extra port needs to be published for
+this (unlike Claude Code's OAuth login):
 
 ```bash
 docker exec -it ab-harness gh auth login
-# or, for GitLab:
-docker exec -it ab-harness glab auth login
 ```
 
-Both are the device-code flow — they print a URL and a code; open the URL in **any**
-browser on your machine and enter the code. No extra port needs to be published for
-this (unlike Claude Code's OAuth login).
+```bash
+# glab's PLAIN `auth login` defaults to a browser-OAuth flow that needs a local
+# callback port (http://localhost:7171/...) — that fails through docker exec, since
+# nothing publishes that port. Use --device instead, which is the equivalent of
+# gh's default: a one-time code + a URL with no local listener at all.
+docker exec -it ab-harness glab auth login --hostname gitlab.com --device --git-protocol https
+```
 
 **Using "local-repo" workspace mode instead?** You don't need this step at all — see
 [below](#testing-against-a-local-repo-instead-of-cloning).
@@ -188,6 +193,7 @@ git credentials in the container at all.
 | **Page won't load** | `docker compose ps` to confirm it's running; `docker compose logs` for errors. |
 | **Bito Skills card shows 0 skills / "no skills found" even after running the installer** | Same underlying cause as the row below — you're most likely still on the old container. If `docker exec` output literally shows `sudo: command not found`, that confirms it. |
 | **Ran `docker pull` (or `docker compose pull`) but nothing changed — still see old bugs / Copilot still showing** | `pull` only refreshes the cached image; it doesn't touch the container that's already running. See "Upgrade to a newer image" under Everyday Use above for the exact remove-and-recreate steps for your setup (compose vs. plain `docker run`). |
+| **`glab auth login` fails with `xdg-open: executable file not found`, then the pasted authorize URL redirects to `localhost:7171/...` and the browser can't connect** | You ran plain `glab auth login`, whose default flow needs a local callback port that isn't published. Use `glab auth login --hostname gitlab.com --device --git-protocol https` instead (Step 5) — no port needed. |
 
 ---
 
