@@ -11,6 +11,11 @@ coding agent: it runs the same questions three ways and compares the answers for
 You don't need to be technical. You run **one file**, then click through a short setup
 in your browser. This guide walks through every step.
 
+> **Prefer Docker?** See [DOCKER.md](DOCKER.md) for a one-command start with no zip
+> file, no Python/Node setup — the rest of the flow below (Setup, Prompts, Run,
+> Results) is the same either way, with Claude Code auth done via an API key in the
+> browser instead of a terminal `/login`.
+
 ---
 
 ## Step 1 — Start the app

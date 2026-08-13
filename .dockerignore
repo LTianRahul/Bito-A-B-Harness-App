@@ -1,0 +1,31 @@
+# Mirrors scripts/package.py's exclusion list: never bake per-machine
+# secrets/state into the image — they live in the /data volume instead.
+configs/
+runs/
+judgments/
+reports/
+prompt_sets/
+results.db
+results.db-*
+prompts.json
+indexed-repos.txt
+*.bak-*
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Node
+frontend/node_modules/
+frontend/tsconfig.node.tsbuildinfo
+frontend/tsconfig.tsbuildinfo
+
+# Packaging / VCS / OS junk
+dist-package/
+.git/
+.DS_Store
+
+# Docs and non-runtime scripts don't need to be in the build context
+docs/
+scripts/

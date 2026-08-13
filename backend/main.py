@@ -29,6 +29,12 @@ app.add_middleware(
 
 @app.on_event("startup")
 def _startup() -> None:
+    # Load a Setup-page-saved Anthropic API key into the process env before anything
+    # else runs, so headless `claude` subprocess calls have it from the first request.
+    from .services import anthropic_auth
+
+    anthropic_auth.load_persisted_into_env()
+
     # A server restart can't leave a benchmark "running" — mark orphans interrupted.
     from .services import runner
 

@@ -4,12 +4,35 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from ..models import BuildConfigsRequest, DoctorRequest
+from ..models import AnthropicKeyRequest, BuildConfigsRequest, DoctorRequest
 from .. import engine
+from ..services import anthropic_auth
 from ..services import detection
 from ..services import skills as skills_svc
 
 router = APIRouter(prefix="/api", tags=["setup"])
+
+
+@router.get("/setup/anthropic-key")
+def get_anthropic_key() -> dict:
+    """Whether an Anthropic API key is configured (never returns the raw key)."""
+    return anthropic_auth.status()
+
+
+@router.post("/setup/anthropic-key")
+def set_anthropic_key(req: AnthropicKeyRequest) -> dict:
+    """Save an Anthropic API key from the Setup page — the in-browser alternative
+    to running `claude`/`/login` in a terminal (needed in containers, where the
+    interactive OAuth callback doesn't have a reachable port)."""
+    try:
+        return anthropic_auth.save(req.api_key)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/setup/anthropic-key")
+def remove_anthropic_key() -> dict:
+    return anthropic_auth.clear()
 
 
 @router.get("/tools")

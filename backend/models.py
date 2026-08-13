@@ -26,6 +26,11 @@ class BitoAuthRequest(BaseModel):
     tools: Optional[list[str]] = None   # which tool configs to write into; default all detected
 
 
+# ---- Claude Code (Anthropic API key) auth ----
+class AnthropicKeyRequest(BaseModel):
+    api_key: str
+
+
 # ---- Prompts ----
 class Prompt(BaseModel):
     id: str

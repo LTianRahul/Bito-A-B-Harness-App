@@ -78,6 +78,11 @@ interface SkillsStatus {
   claude: SingleToolSkills;
   copilot: SingleToolSkills;
 }
+interface AnthropicKeyStatus {
+  configured: boolean;
+  source: "setup-ui" | "environment" | null;
+  masked: string | null;
+}
 
 export default function Setup() {
   const tools = useAsync<ToolsResp>(() => api.get("/tools"));
@@ -96,12 +101,15 @@ export default function Setup() {
     : "curl -fsSL https://mcp-setup.bito.ai/install.sh | bash";
   const prompts = useAsync<{ prompts: { id: string; prompt: string }[] }>(() => api.get("/prompts"));
   const skillsStatus = useAsync<SkillsStatus>(() => api.get("/setup/skills"));
+  const anthropicKey = useAsync<AnthropicKeyStatus>(() => api.get("/setup/anthropic-key"));
 
   const [workspaceId, setWorkspaceId] = useState("");
   const [token, setToken] = useState("");
   const [showSelfHosted, setShowSelfHosted] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [anthropicKeyInput, setAnthropicKeyInput] = useState("");
+  const [anthropicMsg, setAnthropicMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   // Health check is per-tool: each CLI is probed through its own MCP connection.
   const [checking, setChecking] = useState<string | null>(null); // tool id in flight
@@ -149,6 +157,7 @@ export default function Setup() {
       status.refresh();
       tools.refresh();
       health.refresh();
+      anthropicKey.refresh();
     };
     const t = setInterval(refresh, 12000);
     window.addEventListener("focus", refresh);
@@ -307,6 +316,37 @@ export default function Setup() {
   }
 
 
+  async function saveAnthropicKey() {
+    if (!anthropicKeyInput.trim()) return setAnthropicMsg({ ok: false, text: "Enter an API key first." });
+    setBusy("anthropic-save");
+    setAnthropicMsg(null);
+    try {
+      await api.post("/setup/anthropic-key", { api_key: anthropicKeyInput.trim() });
+      setAnthropicKeyInput("");
+      setAnthropicMsg({ ok: true, text: "Saved — Claude Code will use this key for every run." });
+      anthropicKey.reload();
+      tools.reload();
+    } catch (e) {
+      setAnthropicMsg({ ok: false, text: e instanceof ApiError ? String(e.detail) : String(e) });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function clearAnthropicKey() {
+    setBusy("anthropic-clear");
+    try {
+      await api.del("/setup/anthropic-key");
+      setAnthropicMsg({ ok: true, text: "Removed." });
+      anthropicKey.reload();
+      tools.reload();
+    } catch (e) {
+      setAnthropicMsg({ ok: false, text: e instanceof ApiError ? String(e.detail) : String(e) });
+    } finally {
+      setBusy(null);
+    }
+  }
+
   // Live health check for ONE CLI — probes Bito through that tool's own MCP
   // connection (Claude via claude, Copilot via copilot), since they're independent.
   async function healthCheck(toolId: string) {
@@ -426,9 +466,15 @@ export default function Setup() {
           const skillsWarn = skillsOk && !(claudeSk?.arm_c_ok || copilotSk?.arm_c_ok);
           const totalSkillCount = Math.max(claudeSk?.count ?? 0, copilotSk?.count ?? 0);
 
+          // Only relevant when Claude Code is actually the tool in use — a Copilot-only
+          // setup doesn't need this at all, so it can't block the checklist for them.
+          const anthropicConfigured = !!anthropicKey.data?.configured;
+          const anthropicNeeded = claudeOk && !anthropicConfigured;
+
           // The single next action to highlight.
           let next: { text: string; to?: string; scroll?: string } | null = null;
           if (!anyToolOk) next = { text: "Install a code-gen tool CLI (Claude Code or GitHub Copilot CLI) to run benchmarks" };
+          else if (anthropicNeeded) next = { text: "Add a Claude Code API key just below", scroll: "anthropic-key" };
           else if (bitoExpired) next = { text: "Reconnect Bito — your sign-in expired", scroll: "bito-connect" };
           else if (!bitoOk) next = { text: "Connect Bito just below", scroll: "bito-connect" };
           else if (!skillsOk) next = { text: "Install Bito Skills so Arms B & C work correctly", scroll: "bito-skills" };
@@ -455,6 +501,17 @@ export default function Setup() {
                   ))
                 : "Install Claude Code or GitHub Copilot CLI (standalone binary), then reopen this app.",
               warn: !anyToolOk,
+            },
+            {
+              done: !anthropicNeeded,
+              warn: anthropicNeeded,
+              t: anthropicNeeded ? "Add a Claude Code API key" : "Claude Code has an API key",
+              d: !claudeOk
+                ? "Not needed — Claude Code isn't installed."
+                : anthropicConfigured
+                ? `Configured (${anthropicKey.data?.masked}) — no browser sign-in needed.`
+                : "No key set yet — add one below so Claude Code can run headlessly.",
+              action: anthropicNeeded ? { label: "Add key below", scroll: "anthropic-key" } : undefined,
             },
             {
               done: bitoOk,
@@ -506,7 +563,7 @@ export default function Setup() {
               done: false,
               t: "Run your first A/B test",
               d: "We compare your tool with & without Bito and score the answers.",
-              action: { label: "Go to Run", to: "/run", disabled: !(anyToolOk && bitoOk && skillsOk) },
+              action: { label: "Go to Run", to: "/run", disabled: !(anyToolOk && !anthropicNeeded && bitoOk && skillsOk) },
             },
           ];
 
@@ -561,6 +618,78 @@ export default function Setup() {
           );
         }}
       </Async>
+
+      {/* Claude Code auth — Anthropic API key, entered here instead of running
+          `claude` + `/login` in a terminal. This is the only auth path that works
+          unattended in a container: `/login`'s browser callback needs a locally
+          reachable port, and on macOS its token lives in the Keychain anyway, so
+          it can't be reused by a Linux container. */}
+      <div id="anthropic-key" />
+      <Card
+        title="Claude Code — Anthropic API key"
+        sub="Lets the harness run `claude` headlessly, with no browser sign-in step."
+        right={
+          <a
+            href="https://console.anthropic.com/settings/keys"
+            target="_blank"
+            rel="noreferrer"
+            style={{ fontSize: 13 }}
+          >
+            Get an API key ↗
+          </a>
+        }
+      >
+        <Async state={anthropicKey}>
+          {(ak) => (
+            <>
+              {ak.configured ? (
+                <div className="row" style={{ justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                  <div>
+                    <Badge kind="ok">Configured</Badge>{" "}
+                    <span className="faint mono" style={{ fontSize: 12 }}>{ak.masked}</span>
+                    {ak.source === "environment" && (
+                      <div className="faint" style={{ fontSize: 11.5, marginTop: 4 }}>
+                        Set by the launch environment (e.g. <code>docker run -e ANTHROPIC_API_KEY=…</code>) —
+                        remove it there to change it.
+                      </div>
+                    )}
+                  </div>
+                  {ak.source === "setup-ui" && (
+                    <button className="btn sm danger" onClick={clearAnthropicKey} disabled={busy === "anthropic-clear"}>
+                      {busy === "anthropic-clear" ? <Spinner /> : null} Remove
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="field">
+                  <label>Anthropic API key</label>
+                  <div className="row" style={{ gap: 8 }}>
+                    <input
+                      type="password"
+                      placeholder="sk-ant-…"
+                      value={anthropicKeyInput}
+                      onChange={(e) => setAnthropicKeyInput(e.target.value)}
+                      style={{ flex: 1, fontFamily: "monospace" }}
+                    />
+                    <button className="btn primary" onClick={saveAnthropicKey} disabled={busy === "anthropic-save"}>
+                      {busy === "anthropic-save" ? <Spinner /> : null} Save
+                    </button>
+                  </div>
+                  <div className="faint" style={{ fontSize: 11.5, marginTop: 5 }}>
+                    Stored locally in <code className="mono">configs/anthropic_key.json</code> and applied
+                    immediately — no restart needed.
+                  </div>
+                </div>
+              )}
+              {anthropicMsg && (
+                <div style={{ marginTop: 12 }}>
+                  <Banner kind={anthropicMsg.ok ? "ok" : "err"}>{anthropicMsg.text}</Banner>
+                </div>
+              )}
+            </>
+          )}
+        </Async>
+      </Card>
 
       {/* Bito MCP connection */}
       <div id="bito-connect" />

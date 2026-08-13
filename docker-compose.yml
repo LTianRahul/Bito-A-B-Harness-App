@@ -1,0 +1,33 @@
+# One-command start for a customer:
+#
+#   docker compose up -d
+#
+# then open http://localhost:8765 and do everything else (Claude Code API key,
+# Bito connect, prompts, run) in the browser — see docs/DOCKER.md.
+#
+# `image:` pulls the prebuilt build from GHCR; maintainers can `docker compose
+# build` to build the `build:` context locally instead (e.g. to test a change
+# before it's published).
+services:
+  ab-harness:
+    image: ghcr.io/ltianrahul/bito-ab-harness-app:latest
+    build: .
+    ports:
+      - "8765:8765"
+    volumes:
+      - harness-data:/data
+      # Bito Skills install to ~/.claude/skills (and gh/glab auth to ~/.config) —
+      # outside /data, so without this they'd be lost if the container is ever
+      # recreated (e.g. on an image upgrade), not just restarted.
+      - harness-claude-home:/root/.claude
+      - harness-gh-config:/root/.config
+    environment:
+      # Optional: skip the Setup-page API key card by setting this instead.
+      # Leave unset and paste the key in the browser — see docs/DOCKER.md.
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    restart: unless-stopped
+
+volumes:
+  harness-data:
+  harness-claude-home:
+  harness-gh-config:
