@@ -9,18 +9,17 @@
 # docs/DOCKER.md — so nothing secret is baked into this image.
 FROM python:3.11-slim
 
-# ---- OS packages: git + Node.js (for the claude CLI) + GitHub CLI + jq ----
-# GitLab support (glab) isn't installed here — its official install script expects
-# `sudo`, which this slim image doesn't have. Arm A only needs ONE of gh/glab
-# authenticated (see the Setup page's git-hosting card); add glab manually inside
-# the container if you need GitLab repo access — see docs/DOCKER.md.
-#
-# jq is required here for a different reason: Bito's own Skills installer
+# ---- OS packages: git + Node.js (for the claude CLI) + GitHub/GitLab CLIs + jq ----
+# jq is required for a non-obvious reason: Bito's own Skills installer
 # (mcp-setup.bito.ai/install.sh) needs jq to parse its skills manifest, and its
-# fallback auto-install ALSO shells out to `sudo apt-get install jq` — same
-# missing-sudo problem as glab. Without jq preinstalled, the installer silently
-# skips copying any skill files (you'd still see the MCP server get configured,
-# just with zero bito-* skills on disk).
+# fallback auto-install shells out to `sudo apt-get install jq` — this image has
+# no `sudo` (it's already root). Without jq preinstalled, the installer silently
+# skips copying any skill files while still reporting the MCP server as configured.
+#
+# glab isn't in Debian's apt repos and its official install script has the SAME
+# missing-sudo problem as above, so it's installed from GitLab's own prebuilt
+# .deb release instead (dpkg -i needs no sudo). Bump GLAB_VERSION to update.
+ARG GLAB_VERSION=1.113.0
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git curl ca-certificates gnupg jq \
     && mkdir -p /etc/apt/keyrings \
@@ -34,6 +33,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         > /etc/apt/sources.list.d/github-cli.list \
     && apt-get update && apt-get install -y --no-install-recommends nodejs gh \
     && rm -rf /var/lib/apt/lists/* \
+    && GLAB_ARCH="$(dpkg --print-architecture)" \
+    && curl -fsSL "https://gitlab.com/api/v4/projects/gitlab-org%2Fcli/packages/generic/glab/${GLAB_VERSION}/glab_${GLAB_VERSION}_linux_${GLAB_ARCH}.deb" \
+        -o /tmp/glab.deb \
+    && dpkg -i /tmp/glab.deb && rm -f /tmp/glab.deb \
     && npm install -g @anthropic-ai/claude-code \
     && npm cache clean --force
 

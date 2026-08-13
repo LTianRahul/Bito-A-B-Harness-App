@@ -84,29 +84,29 @@ Reload the Setup page — no restart needed, it detects the new skills live.
 > OAuth, which the installer sets up for you).
 
 If you pulled the image before this was fixed, skills silently failed to install —
-the Setup page would show the MCP connected but 0 skills. That was Bito's installer
-script trying `sudo apt-get install jq` to get a JSON parser it needs, and this
-image has no `sudo` (it runs as root already). Current images ship `jq`
-preinstalled, so this no longer happens — `docker compose pull` to get the fix.
+the Setup page would show the MCP connected but 0 skills, and `docker exec` output
+would literally show `sudo: command not found`. That was Bito's installer script
+trying `sudo apt-get install jq` to get a JSON parser it needs, and this image has
+no `sudo` (it runs as root already). Current images ship `jq` and `glab` (see Step 5)
+preinstalled, so this no longer happens — see "Upgrade to a newer image" under
+Everyday Use below to actually get the fix (a plain `pull` isn't enough on its own).
 
 ---
 
 ## Step 5 — Git hosting credentials (only if you use "fresh-clone" workspace mode)
 
-Arm A clones repos itself via `gh`/`glab`, so it needs one of them authenticated
-*inside the container*:
+Arm A clones repos itself via `gh`/`glab` (both are preinstalled), so it needs one
+of them authenticated *inside the container*:
 
 ```bash
 docker exec -it ab-harness gh auth login
+# or, for GitLab:
+docker exec -it ab-harness glab auth login
 ```
 
-This is the device-code flow — it prints a URL and a code; open the URL in **any**
+Both are the device-code flow — they print a URL and a code; open the URL in **any**
 browser on your machine and enter the code. No extra port needs to be published for
 this (unlike Claude Code's OAuth login).
-
-Only `gh` (GitHub) ships in the image today — `glab`'s official installer needs
-`sudo`, which the slim base image doesn't have. If you need GitLab repos, install it
-yourself once: `docker exec -it ab-harness bash -c "apt-get update && apt-get install -y sudo && curl -fsSL https://gitlab.com/gitlab-org/cli/-/raw/main/scripts/install.sh | bash"`.
 
 **Using "local-repo" workspace mode instead?** You don't need this step at all — see
 [below](#testing-against-a-local-repo-instead-of-cloning).
@@ -121,6 +121,8 @@ Identical to the non-Docker flow — see [Steps 5–7 of the main guide](README.
 
 ## Everyday use
 
+**If you started with `docker compose up -d`:**
+
 - **Stop:** `docker compose down` (add `-v` only if you want to wipe everything — see below).
 - **Start again:** `docker compose up -d`. Everything you set up is still there.
 - **Upgrade to a newer image:** `docker compose pull && docker compose up -d`. Your
@@ -128,6 +130,31 @@ Identical to the non-Docker flow — see [Steps 5–7 of the main guide](README.
 - **Full reset:** `docker compose down -v` — deletes all three volumes, back to a
   fresh machine.
 - **View logs:** `docker compose logs -f`.
+
+**If you started with the plain `docker run` command from Step 1** (no
+`docker-compose.yml`): `docker pull` on its own does **not** touch the running
+container — it only refreshes the local image cache. You have to remove the old
+container and start a new one from the freshly pulled image; as long as you reuse
+the same volume names, nothing is lost:
+
+```bash
+docker pull ghcr.io/ltianrahul/bito-ab-harness-app:latest
+docker rm -f ab-harness
+docker run -d --name ab-harness \
+  -p 8765:8765 \
+  -v harness-data:/data \
+  -v harness-claude-home:/root/.claude \
+  -v harness-gh-config:/root/.config \
+  ghcr.io/ltianrahul/bito-ab-harness-app:latest
+```
+
+- **Stop:** `docker stop ab-harness`. **Start again:** `docker start ab-harness`.
+- **Full reset:** add `docker volume rm harness-data harness-claude-home harness-gh-config`
+  after removing the container.
+- **View logs:** `docker logs -f ab-harness`.
+- **Check which image you're actually running:** `docker inspect ab-harness --format '{{.Image}}'`
+  vs. `docker images --digests ghcr.io/ltianrahul/bito-ab-harness-app` — if they don't
+  match, you're still on the old container; do the pull-and-recreate above.
 
 ### Testing against a local repo instead of cloning
 
@@ -159,7 +186,8 @@ git credentials in the container at all.
 | **Skills/git-login disappeared after an upgrade** | You're missing the `harness-claude-home` / `harness-gh-config` volumes — see the `docker run` command in Step 1. Re-run Steps 4/5 once; from then on they'll persist across upgrades. |
 | **`docker exec -it ab-harness ...` says "no such container"** | You used `docker compose` — the container name is `<project>-ab-harness-1`. Run `docker compose exec ab-harness ...` instead (no container name needed). |
 | **Page won't load** | `docker compose ps` to confirm it's running; `docker compose logs` for errors. |
-| **Bito Skills card shows 0 skills / "no skills found" even after running the installer** | Two possibilities: (1) you're on an image from before the `jq` fix above — `docker compose pull` and recreate the container; (2) you ran the plain interactive installer instead of the `--non-interactive` form in Step 4 — re-run with the env-var form. |
+| **Bito Skills card shows 0 skills / "no skills found" even after running the installer** | Same underlying cause as the row below — you're most likely still on the old container. If `docker exec` output literally shows `sudo: command not found`, that confirms it. |
+| **Ran `docker pull` (or `docker compose pull`) but nothing changed — still see old bugs / Copilot still showing** | `pull` only refreshes the cached image; it doesn't touch the container that's already running. See "Upgrade to a newer image" under Everyday Use above for the exact remove-and-recreate steps for your setup (compose vs. plain `docker run`). |
 
 ---
 
@@ -169,6 +197,7 @@ git credentials in the container at all.
   in a terminal (see Step 2's rationale above).
 - **Bito Skills and git-hosting CLI login** happen via `docker exec`, not a plain
   terminal, since they install into the container's filesystem.
-- **`glab` isn't preinstalled** (see Step 5). `gh`, `git`, `node`, and `claude` are.
+- **This build only offers Claude Code** — Copilot/Cursor/Windsurf/Cline are hidden
+  from the Setup/Run pages since their CLIs aren't installed in the image.
 - Everything else — the Setup checklist, Bito OAuth connect, Prompts, Run, Results —
   is exactly the same app, unchanged.
