@@ -64,15 +64,30 @@ mapped port; nothing about this step changes for Docker.
 
 ## Step 4 — Install Bito Skills
 
-The Setup page shows the same one-line installer as always, but it has to run
-**inside the container** (skills install to `~/.claude/skills`, which is the
-container's filesystem, not your host's):
+Skills install to `~/.claude/skills`, which is the **container's** filesystem, not
+your host's — so this has to run inside the container, and needs `--non-interactive`
+mode with the workspace/email passed as env vars (the plain interactive installer
+the Setup page shows depends on a real TTY reading prompts from `/dev/tty`, which is
+one more thing that can go wrong through `docker exec`; the non-interactive form is
+deterministic and doesn't need `-it` at all):
 
 ```bash
-docker exec -it ab-harness bash -c "curl -fsSL https://mcp-setup.bito.ai/install.sh | bash"
+docker exec \
+  -e MCP_URL="https://mcp.bito.ai/<YOUR_WORKSPACE_ID>/mcp" \
+  -e USER_EMAIL="you@example.com" \
+  ab-harness bash -c "curl -fsSL https://mcp-setup.bito.ai/install.sh | bash -s -- --non-interactive"
 ```
 
-Then reload the Setup page — no restart needed.
+Reload the Setup page — no restart needed, it detects the new skills live.
+
+> **Self-hosted Bito?** Add `-e BEARER_TOKEN="..."` (omit it for hosted Bito's
+> OAuth, which the installer sets up for you).
+
+If you pulled the image before this was fixed, skills silently failed to install —
+the Setup page would show the MCP connected but 0 skills. That was Bito's installer
+script trying `sudo apt-get install jq` to get a JSON parser it needs, and this
+image has no `sudo` (it runs as root already). Current images ship `jq`
+preinstalled, so this no longer happens — `docker compose pull` to get the fix.
 
 ---
 
@@ -144,6 +159,7 @@ git credentials in the container at all.
 | **Skills/git-login disappeared after an upgrade** | You're missing the `harness-claude-home` / `harness-gh-config` volumes — see the `docker run` command in Step 1. Re-run Steps 4/5 once; from then on they'll persist across upgrades. |
 | **`docker exec -it ab-harness ...` says "no such container"** | You used `docker compose` — the container name is `<project>-ab-harness-1`. Run `docker compose exec ab-harness ...` instead (no container name needed). |
 | **Page won't load** | `docker compose ps` to confirm it's running; `docker compose logs` for errors. |
+| **Bito Skills card shows 0 skills / "no skills found" even after running the installer** | Two possibilities: (1) you're on an image from before the `jq` fix above — `docker compose pull` and recreate the container; (2) you ran the plain interactive installer instead of the `--non-interactive` form in Step 4 — re-run with the env-var form. |
 
 ---
 

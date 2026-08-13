@@ -9,13 +9,20 @@
 # docs/DOCKER.md — so nothing secret is baked into this image.
 FROM python:3.11-slim
 
-# ---- OS packages: git + Node.js (for the claude CLI) + GitHub CLI ----
+# ---- OS packages: git + Node.js (for the claude CLI) + GitHub CLI + jq ----
 # GitLab support (glab) isn't installed here — its official install script expects
 # `sudo`, which this slim image doesn't have. Arm A only needs ONE of gh/glab
 # authenticated (see the Setup page's git-hosting card); add glab manually inside
 # the container if you need GitLab repo access — see docs/DOCKER.md.
+#
+# jq is required here for a different reason: Bito's own Skills installer
+# (mcp-setup.bito.ai/install.sh) needs jq to parse its skills manifest, and its
+# fallback auto-install ALSO shells out to `sudo apt-get install jq` — same
+# missing-sudo problem as glab. Without jq preinstalled, the installer silently
+# skips copying any skill files (you'd still see the MCP server get configured,
+# just with zero bito-* skills on disk).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        git curl ca-certificates gnupg \
+        git curl ca-certificates gnupg jq \
     && mkdir -p /etc/apt/keyrings \
     # Node.js 20.x (NodeSource) — claude CLI requires Node >= 18.
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
