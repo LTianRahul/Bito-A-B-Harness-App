@@ -10,10 +10,11 @@ differently.
 > cannot be used with root/sudo privileges"* — nothing actually worked, not just one
 > feature. It now runs as a non-root user, whose home moved from `/root` to
 > `/home/appuser`. Recreate your container per "Upgrade to a newer image" below
-> **and** update the two volume mount paths (`/home/appuser/.claude`,
-> `/home/appuser/.config` instead of `/root/...`) — your `/data` volume (results,
-> Bito connection, prompts) is untouched, but skills and any `gh`/`glab` sign-in
-> will need Steps 4/5 run again once against the new paths.
+> **and** update the two volume mount paths to `/home/appuser/.claude` and
+> `/home/appuser/.config` (instead of `/root/...`) — reuse the **same** volume
+> names you already have; the entrypoint fixes ownership on every start
+> regardless of who wrote to them before, so your skills, `gh`/`glab` sign-in,
+> results, and Bito connection all carry over with nothing to redo.
 
 ---
 
@@ -205,6 +206,7 @@ git credentials in the container at all.
 | **Ran `docker pull` (or `docker compose pull`) but nothing changed — still see old bugs / Copilot still showing** | `pull` only refreshes the cached image; it doesn't touch the container that's already running. See "Upgrade to a newer image" under Everyday Use above for the exact remove-and-recreate steps for your setup (compose vs. plain `docker run`). |
 | **`glab auth login` fails with `xdg-open: executable file not found`, then the pasted authorize URL redirects to `localhost:7171/...` and the browser can't connect** | You ran plain `glab auth login`, whose default flow needs a local callback port that isn't published. Use `glab auth login --hostname gitlab.com --device --git-protocol https` instead (Step 5) — no port needed. |
 | **Everything (Generate prompts with AI, any Run) fails with `--dangerously-skip-permissions cannot be used with root/sudo privileges`** | You're on an image from before the container ran as non-root — see the upgrading note at the top of this doc. Recreate the container from the latest image, updating your two `.claude`/`.config` volume paths to `/home/appuser/...`. |
+| **Container exits immediately; `docker logs ab-harness` shows `Permission denied` on `/data/results.db` or similar** | You're on an image from before the entrypoint self-healed volume ownership on every start (fixed same day as the non-root change above). Pull the latest image and recreate — no need to touch the volume itself, the fix chowns it automatically on next start. |
 
 ---
 
