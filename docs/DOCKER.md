@@ -5,6 +5,16 @@ just Docker. Everything else (Claude Code auth, Bito connect, prompts, running) 
 done in the browser, exactly like the [non-Docker guide](README.md), just launched
 differently.
 
+> **Upgrading from before 2026-08-13?** The container used to run as root, which
+> made `claude` hard-refuse every headless run with *"--dangerously-skip-permissions
+> cannot be used with root/sudo privileges"* — nothing actually worked, not just one
+> feature. It now runs as a non-root user, whose home moved from `/root` to
+> `/home/appuser`. Recreate your container per "Upgrade to a newer image" below
+> **and** update the two volume mount paths (`/home/appuser/.claude`,
+> `/home/appuser/.config` instead of `/root/...`) — your `/data` volume (results,
+> Bito connection, prompts) is untouched, but skills and any `gh`/`glab` sign-in
+> will need Steps 4/5 run again once against the new paths.
+
 ---
 
 ## Step 1 — Start the app
@@ -16,8 +26,8 @@ Docker Engine + Compose on Linux) installed and running.
 docker run -d --name ab-harness \
   -p 8765:8765 \
   -v harness-data:/data \
-  -v harness-claude-home:/root/.claude \
-  -v harness-gh-config:/root/.config \
+  -v harness-claude-home:/home/appuser/.claude \
+  -v harness-gh-config:/home/appuser/.config \
   ghcr.io/ltianrahul/bito-ab-harness-app:latest
 ```
 
@@ -30,7 +40,7 @@ docker compose up -d
 Open **http://localhost:8765** — everything from here on happens in the browser.
 
 > **Why three volumes?** `/data` holds your results, Bito connection, and prompts.
-> `/root/.claude` and `/root/.config` hold Bito Skills and any `gh`/`glab` sign-in.
+> `/home/appuser/.claude` and `/home/appuser/.config` hold Bito Skills and any `gh`/`glab` sign-in.
 > All three need to survive a `docker compose pull && docker compose up -d` (image
 > upgrade), not just a restart — that's why they're separate named volumes instead
 > of being thrown away with the container.
@@ -148,8 +158,8 @@ docker rm -f ab-harness
 docker run -d --name ab-harness \
   -p 8765:8765 \
   -v harness-data:/data \
-  -v harness-claude-home:/root/.claude \
-  -v harness-gh-config:/root/.config \
+  -v harness-claude-home:/home/appuser/.claude \
+  -v harness-gh-config:/home/appuser/.config \
   ghcr.io/ltianrahul/bito-ab-harness-app:latest
 ```
 
@@ -171,8 +181,8 @@ the mounted path:
 docker run -d --name ab-harness \
   -p 8765:8765 \
   -v harness-data:/data \
-  -v harness-claude-home:/root/.claude \
-  -v harness-gh-config:/root/.config \
+  -v harness-claude-home:/home/appuser/.claude \
+  -v harness-gh-config:/home/appuser/.config \
   -v /path/on/your/machine/my-repo:/workspace/my-repo:ro \
   ghcr.io/ltianrahul/bito-ab-harness-app:latest
 ```
@@ -194,6 +204,7 @@ git credentials in the container at all.
 | **Bito Skills card shows 0 skills / "no skills found" even after running the installer** | Same underlying cause as the row below — you're most likely still on the old container. If `docker exec` output literally shows `sudo: command not found`, that confirms it. |
 | **Ran `docker pull` (or `docker compose pull`) but nothing changed — still see old bugs / Copilot still showing** | `pull` only refreshes the cached image; it doesn't touch the container that's already running. See "Upgrade to a newer image" under Everyday Use above for the exact remove-and-recreate steps for your setup (compose vs. plain `docker run`). |
 | **`glab auth login` fails with `xdg-open: executable file not found`, then the pasted authorize URL redirects to `localhost:7171/...` and the browser can't connect** | You ran plain `glab auth login`, whose default flow needs a local callback port that isn't published. Use `glab auth login --hostname gitlab.com --device --git-protocol https` instead (Step 5) — no port needed. |
+| **Everything (Generate prompts with AI, any Run) fails with `--dangerously-skip-permissions cannot be used with root/sudo privileges`** | You're on an image from before the container ran as non-root — see the upgrading note at the top of this doc. Recreate the container from the latest image, updating your two `.claude`/`.config` volume paths to `/home/appuser/...`. |
 
 ---
 

@@ -18,9 +18,12 @@ services:
       - harness-data:/data
       # Bito Skills install to ~/.claude/skills (and gh/glab auth to ~/.config) —
       # outside /data, so without this they'd be lost if the container is ever
-      # recreated (e.g. on an image upgrade), not just restarted.
-      - harness-claude-home:/root/.claude
-      - harness-gh-config:/root/.config
+      # recreated (e.g. on an image upgrade), not just restarted. The container
+      # runs as non-root user "appuser" (home /home/appuser) — claude CLI
+      # refuses --dangerously-skip-permissions as root — so that's ~ here, not
+      # /root.
+      - harness-claude-home:/home/appuser/.claude
+      - harness-gh-config:/home/appuser/.config
     environment:
       # Optional: skip the Setup-page API key card by setting this instead.
       # Leave unset and paste the key in the browser — see docs/DOCKER.md.

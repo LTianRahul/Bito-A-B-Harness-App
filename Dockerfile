@@ -56,9 +56,22 @@ COPY frontend/dist/ ./frontend/dist/
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# Per-machine state (configs/, runs/, judgments/, reports/, results.db, prompt_sets/)
-# is symlinked into /data by the entrypoint — never baked into the image. Customers
-# mount ONE volume at /data (see docker-compose.yml).
+# Run as a non-root user: `claude` hard-refuses --dangerously-skip-permissions
+# (which the harness always passes for headless runs) when running as root —
+# "cannot be used with root/sudo privileges for security reasons" — so the
+# entire benchmark would fail without this, not just one feature.
+#
+# Pre-creating and chown'ing these paths BEFORE the VOLUME/USER lines matters:
+# Docker seeds a freshly-mounted empty named volume from whatever already
+# exists at that path in the image, ownership included — so appuser gets
+# write access to /data, ~/.claude, and ~/.config from the very first mount,
+# with no root-then-drop-privileges step needed in the entrypoint.
+RUN useradd --create-home --shell /bin/bash appuser \
+    && mkdir -p /data /home/appuser/.claude /home/appuser/.config \
+    && chown -R appuser:appuser /app /data /home/appuser
+USER appuser
+ENV HOME=/home/appuser
+
 VOLUME ["/data"]
 EXPOSE 8765
 
