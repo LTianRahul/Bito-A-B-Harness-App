@@ -11,7 +11,13 @@
 set -euo pipefail
 
 mkdir -p /data/configs /data/runs /data/judgments /data/reports /data/prompt_sets
-touch -a /data/results.db /data/prompts.json
+touch -a /data/results.db  # sqlite treats a 0-byte file as a valid empty db
+# prompts.json is parsed as JSON on every read — a 0-byte file (what plain
+# `touch` would leave a brand new one as) fails that parse ("Expecting value:
+# line 1 column 1"), breaking Prompts entirely until something else happens to
+# rewrite it. Seed it with a valid empty array instead, but only if it's
+# missing or already empty — never touch a file that already has real prompts.
+[ -s /data/prompts.json ] || echo '[]' > /data/prompts.json
 
 for d in configs runs judgments reports prompt_sets; do
     rm -rf "/app/$d"
