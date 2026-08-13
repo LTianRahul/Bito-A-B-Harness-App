@@ -820,7 +820,11 @@ def per_tool_status() -> dict:
     rec = _load()
     oauth_live = bool(rec) and not (time.time() >= rec.get("expires_at", 0))
     tools: dict[str, dict] = {}
+    from ..adapters.registry import enabled_tool_ids
+    enabled = enabled_tool_ids()
     for tid in _TOOL_CONFIG_PATHS:
+        if enabled is not None and tid not in enabled:
+            continue
         servers = _read_tool_servers(tid)
         key = _bito_key(servers)
         ws, tok, url = _ws_token_from_servers(servers) if key else (None, None, None)

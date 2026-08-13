@@ -30,6 +30,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && npm install -g @anthropic-ai/claude-code \
     && npm cache clean --force
 
+# This build only supports Claude Code — hides Copilot/Cursor/Windsurf/Cline
+# from the Setup/Run pages entirely (their CLIs aren't installed in this image
+# anyway). Unset this to restore every tool; unaffected outside Docker.
+ENV HARNESS_TOOLS=claude
+
 WORKDIR /app
 
 COPY requirements.txt ./

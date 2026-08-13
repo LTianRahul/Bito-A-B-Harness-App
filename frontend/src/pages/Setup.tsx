@@ -926,12 +926,22 @@ export default function Setup() {
                 <p className="faint" style={{ fontSize: 12 }}>
                   Hosted Bito (<span className="mono">mcp.bito.ai</span>) uses OAuth — click <strong>Connect</strong>
                   on a CLI, approve in the browser once, and the harness writes the Bito server into that CLI's
-                  MCP config (<span className="mono">~/.claude.json</span> or <span className="mono">~/.copilot/mcp-config.json</span>)
-                  and stores &amp; auto-refreshes the token. The same sign-in is reused, so connecting the second CLI
-                  needs no extra browser step. Each <strong>Disconnect</strong> only removes that one CLI. Each row's{" "}
-                  <strong>Health check</strong> probes Bito live through <em>that</em> CLI — Claude Code via{" "}
-                  <span className="mono">claude</span>, Copilot via <span className="mono">copilot</span> — since their MCP
-                  connections are independent.
+                  MCP config ({shown.map((t, i) => (
+                    <React.Fragment key={t.id}>
+                      {i > 0 && " or "}
+                      <span className="mono">{t.cfg}</span>
+                    </React.Fragment>
+                  ))}) and stores &amp; auto-refreshes the token.
+                  {shown.length > 1 && " The same sign-in is reused, so connecting the second CLI needs no extra browser step."}{" "}
+                  Each <strong>Disconnect</strong> only removes that one CLI. Each row's{" "}
+                  <strong>Health check</strong> probes Bito live through <em>that</em> CLI{shown.length > 1 ? (
+                    <> — {shown.map((t, i) => (
+                      <React.Fragment key={t.id}>
+                        {i > 0 && ", "}
+                        {t.label} via <span className="mono">{t.id}</span>
+                      </React.Fragment>
+                    ))} — since their MCP connections are independent.</>
+                  ) : "."}
                 </p>
 
                 {msg && <div style={{ marginTop: 12 }}><Banner kind={msg.ok ? "ok" : "err"}>{msg.text}</Banner></div>}
@@ -1002,9 +1012,13 @@ export default function Setup() {
       >
         <Async state={skillsStatus}>
           {(sk) => {
-            const anyArmBOk  = !!(sk.claude.arm_b_ok || sk.copilot.arm_b_ok);
-            const anyArmCOk  = !!(sk.claude.arm_c_ok || sk.copilot.arm_c_ok);
-            const totalCount = Math.max(sk.claude.count, sk.copilot.count);
+            // Hide Copilot entirely when this build/machine doesn't offer it (e.g.
+            // the Docker image only ships Claude Code) — /api/tools is the single
+            // source of truth for which tools are enabled.
+            const copilotEnabled = !!tools.data?.tools?.some((x) => x.id === "copilot");
+            const anyArmBOk  = !!(sk.claude.arm_b_ok || (copilotEnabled && sk.copilot.arm_b_ok));
+            const anyArmCOk  = !!(sk.claude.arm_c_ok || (copilotEnabled && sk.copilot.arm_c_ok));
+            const totalCount = copilotEnabled ? Math.max(sk.claude.count, sk.copilot.count) : sk.claude.count;
 
             const ToolSkillRow = ({ label, toolSk, dirLabel }: {
               label: string;
@@ -1094,7 +1108,9 @@ export default function Setup() {
                 {/* Per-tool skill rows */}
                 <div style={{ marginTop: 14 }}>
                   <ToolSkillRow label="Claude Code" toolSk={sk.claude} dirLabel={claudeSkillsDir} />
-                  <ToolSkillRow label="GitHub Copilot CLI" toolSk={sk.copilot} dirLabel={copilotSkillsDir} />
+                  {copilotEnabled && (
+                    <ToolSkillRow label="GitHub Copilot CLI" toolSk={sk.copilot} dirLabel={copilotSkillsDir} />
+                  )}
                 </div>
               </>
             );
