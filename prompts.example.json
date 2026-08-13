@@ -1,0 +1,32 @@
+[
+  {
+    "id": "subsystem-map",
+    "title": "How a subsystem fits together (cross-repo)",
+    "category": "cross-repo",
+    "prompt": "Replace <repoA>, <repoB>, <repoC> with 3-6 of YOUR indexed repos that form one subsystem. Prompt: Across <repoA>, <repoB>, <repoC>, explain how the subsystem fits together — which repo is the entry point, how a request flows between them, and what each one owns. Cite the repo names, key files, and the functions/endpoints that connect them."
+  },
+  {
+    "id": "version-drift",
+    "title": "Dependency/version drift across services (cross-repo)",
+    "category": "cross-repo",
+    "prompt": "Replace <library> and the repo list with YOUR indexed repos. Prompt: Across <repoA>, <repoB>, <repoC>, build a matrix of which version of <library> each service uses. Highlight version drift, flag any service on an unmaintained or known-CVE version, and recommend a target version plus the upgrade order based on dependency coupling. Cite go.mod/package files."
+  },
+  {
+    "id": "blast-radius",
+    "title": "Blast radius of an API change (impact)",
+    "category": "bug-fix",
+    "prompt": "Replace <repo> and <API/function> with YOUR code. Prompt: We need to change <API/function> in <repo>. What is the blast radius across the system — which repositories and services consume it and what would break? List the specific consuming call sites and files, and the safest order to make the change."
+  },
+  {
+    "id": "add-capability-plan",
+    "title": "Plan a cross-repo feature (architecture)",
+    "category": "architecture",
+    "prompt": "Replace <capability> and the repos with YOUR code. Prompt: We want to add <capability> across <repoA> and <repoB>. Produce a concrete implementation plan: exactly which repositories and files must change, in what order, the rollout sequence, and the main risks. Ground every step in the real code."
+  },
+  {
+    "id": "hallucination-probe",
+    "title": "Does X integrate with Y? (hallucination check)",
+    "category": "hallucination",
+    "prompt": "Replace <repo> and <third-party service> — pick a service the repo most likely does NOT use. Prompt: Does <repo> integrate with <third-party service>? If it does, point to the exact files and functions. If it does NOT, say so explicitly and do not invent an integration — only claim what actually exists in the code."
+  }
+]

@@ -1,0 +1,3 @@
+tqdm>=4.66
+fastapi>=0.110
+uvicorn[standard]>=0.29
