@@ -21,7 +21,8 @@ for the quick version of this same walkthrough.
 ## Step 1 — Start the app
 
 **Requires:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or
-Docker Engine + Compose on Linux) installed and running.
+Docker Engine + Compose on Linux) installed and running. **No clone needed** — this
+pulls the ready-to-run image straight from GHCR:
 
 ```bash
 docker run -d --name ab-harness \
@@ -32,7 +33,8 @@ docker run -d --name ab-harness \
   ghcr.io/ltianrahul/bito-ab-harness-app:latest
 ```
 
-Or, if you have this repo's `docker-compose.yml` (it does the same three volumes for you):
+Or, if you've cloned this repo (only useful for the `docker compose` convenience below,
+or if you're modifying the app):
 
 ```bash
 docker compose up -d
@@ -175,8 +177,10 @@ Go to the **Run** tab.
 - **Start again:** `docker compose up -d`. Everything you set up is still there.
 - **Upgrade to a newer image:** `docker compose pull && docker compose up -d`. Your
   volumes (results, auth, skills) carry over.
-- **Full reset:** `docker compose down -v` — deletes all three volumes, back to a
-  fresh machine.
+- **Full reset (keep the image):** `docker compose down -v` — deletes all three
+  volumes, back to a fresh machine.
+- **Full uninstall (image too):** `docker compose down -v --rmi all`. If it says
+  the image is still in use, another container is still running from it.
 - **View logs:** `docker compose logs -f`.
 
 **If you started with the plain `docker run` command from Step 1** (no
@@ -197,8 +201,13 @@ docker run -d --name ab-harness \
 ```
 
 - **Stop:** `docker stop ab-harness`. **Start again:** `docker start ab-harness`.
-- **Full reset:** add `docker volume rm harness-data harness-claude-home harness-gh-config`
-  after removing the container.
+- **Full reset (keep the image):**
+  ```bash
+  docker rm -f ab-harness
+  docker volume rm harness-data harness-claude-home harness-gh-config
+  ```
+- **Full uninstall (image too):** add `docker rmi ghcr.io/ltianrahul/bito-ab-harness-app:latest`.
+  If it says the image is still in use, another container is still running from it.
 - **View logs:** `docker logs -f ab-harness`.
 - **Check which image you're actually running:** `docker inspect ab-harness --format '{{.Image}}'`
   vs. `docker images --digests ghcr.io/ltianrahul/bito-ab-harness-app` — if they don't

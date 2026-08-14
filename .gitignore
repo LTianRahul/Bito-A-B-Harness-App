@@ -5,6 +5,9 @@ __pycache__/
 
 # Node (frontend/dist IS committed/shipped so clients need no build step)
 frontend/node_modules/
+frontend/vite.config.js      # compiled output of vite.config.ts, not source
+frontend/vite.config.d.ts
+frontend/*.tsbuildinfo       # tsc incremental-build cache
 
 # Per-machine secrets & runtime state — NEVER commit or share these
 configs/                 # contains your Bito OAuth bearer token
@@ -16,6 +19,7 @@ judgments/
 reports/
 indexed-repos.txt        # your org's indexed repo list
 prompt_sets/             # your own prompts
+prompts.json             # your own working prompt list
 .claude.json.bak-*
 
 # OS junk

@@ -29,6 +29,11 @@ That's it — no Node, no Python, no manual dependency installs. Everything else
 (the `claude`/`gh`/`glab` CLIs, skills, MCP config) is either already baked into the
 container or set up from the browser.
 
+**You don't need to clone this repo.** The command below pulls the ready-to-run
+image straight from GHCR — copy it into your terminal and you're done. Cloning
+is only useful if you want the `docker compose` convenience (below) or plan to
+modify the app itself.
+
 ---
 
 ## Quick start
@@ -44,7 +49,8 @@ docker run -d --name ab-harness \
 
 Then open **http://localhost:8765** — everything else happens in the browser.
 
-*(Have this repo cloned instead? `docker compose up -d` does the same thing.)*
+*(Cloned this repo instead? `docker compose up -d` does the same thing, reading
+the volumes and image from `docker-compose.yml`.)*
 
 ### Why three volumes?
 
@@ -172,6 +178,38 @@ skills, and git sign-in all carry over automatically.
 
 *Using `docker compose` instead?* `docker compose pull && docker compose up -d`
 does the recreate for you in one step.
+
+---
+
+## Uninstalling / full removal
+
+Stop and delete the container, then remove the three volumes to erase everything
+— results, Bito connection, prompts, skills, and any git sign-in:
+
+```bash
+docker rm -f ab-harness
+docker volume rm harness-data harness-claude-home harness-gh-config
+```
+
+Add this if you also want the image itself gone (a few hundred MB) — if it says
+the image is still in use, another container (yours or otherwise) on the same
+machine is still running from it; stop/remove that one too, or just skip this
+step if you'll want the image again later:
+
+```bash
+docker rmi ghcr.io/ltianrahul/bito-ab-harness-app:latest
+```
+
+*Using `docker compose` instead?* One command does all of the above:
+
+```bash
+docker compose down -v --rmi all
+```
+
+Only want to reset and start over, keeping Docker/the image installed? Skip the
+`docker volume rm` (or `-v`) step — recreating the container without deleting the
+volumes leaves your Bito connection and skills in place, exactly like
+[Upgrading](#upgrading-to-a-newer-image) above.
 
 ---
 
