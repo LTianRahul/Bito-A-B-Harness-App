@@ -1,9 +1,9 @@
 # Running the A/B Benchmark in Docker
 
-This is the fastest way to try the benchmark: no zip file, no Python/Node setup —
-just Docker. Everything else (Claude Code auth, Bito connect, prompts, running) is
-done in the browser, exactly like the [non-Docker guide](README.md), just launched
-differently.
+This is the only supported way to run the benchmark: no zip file, no Python/Node
+setup — just Docker. Everything else (Claude Code auth, Bito connect, prompts,
+running) happens in the browser. See the repo's [top-level README](../README.md)
+for the quick version of this same walkthrough.
 
 > **Upgrading from before 2026-08-13?** The container used to run as root, which
 > made `claude` hard-refuse every headless run with *"--dangerously-skip-permissions
@@ -67,9 +67,9 @@ card will show "Configured" from the environment and skip asking.)*
 
 ## Step 3 — Connect Bito
 
-Same as the non-Docker flow — **Setup** tab → **Bito AI Architect MCP** card → enter
-your Workspace ID → **Connect**. The browser OAuth popup works fine through the
-mapped port; nothing about this step changes for Docker.
+**Setup** tab → **Bito AI Architect MCP** card → enter your Workspace ID →
+**Connect**. The browser OAuth popup works fine through the mapped port — this
+step is no different running in a container than anywhere else.
 
 ---
 
@@ -129,9 +129,41 @@ docker exec -it ab-harness glab auth login --hostname gitlab.com --device --git-
 
 ---
 
-## Step 6 & 7 — Prompts and Run
+## Step 6 — Set up your questions (prompts)
 
-Identical to the non-Docker flow — see [Steps 5–7 of the main guide](README.md).
+Go to the **Prompts** tab. It starts **empty** — you add the questions you want to test.
+
+- **Easiest:** after you connect Bito (Step 3), click **Generate with AI** — it drafts
+  questions based on your indexed repositories.
+- **Manual:** click **+ Add prompt** and write your own. For ideas and the right shape,
+  open the included `prompts.example.json` file in this repo — it has ready-made
+  templates (replace the `<repo>` placeholders with your real repository names).
+
+Aim your questions at code your Bito workspace has **indexed** — that's where Bito
+helps most (architecture, cross-repo, "where is X", impact of a change, etc.).
+
+---
+
+## Step 7 — Run the benchmark
+
+Go to the **Run** tab.
+
+1. **Arms:** keep **A, B, C** checked (you need all three for a full comparison).
+2. **Workspace mode:** **fresh-clone** (default, each arm clones the repo itself) or
+   **local-repo** (test against a folder mounted into the container — see
+   [Testing against a local repo](#testing-against-a-local-repo-instead-of-cloning)
+   below).
+3. Click **Start**. You'll see live progress — a full run takes a while, since it's
+   making real model calls. You can **Stop** any time.
+
+---
+
+## Step 8 — See the results
+
+- **Results / Scores** — quality, cost, time, and tokens per arm (defaults to your
+  latest run). Higher quality at **lower cost and time** is the Bito win.
+- **Leaderboard** — who won on cost, speed, quality, and more.
+- **Reports** — a clean side-by-side summary you can **download as Markdown** to share.
 
 ---
 

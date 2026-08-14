@@ -51,8 +51,8 @@ Then open **http://localhost:8765** — everything else happens in the browser.
 | Volume | Holds |
 |---|---|
 | `harness-data` → `/data` | Results, Bito connection, your prompts, everything the app itself tracks |
-| `harness-claude-home` → `/home/appuser/.claude` | Bito Skills (installed once, Step 4 below) |
-| `harness-gh-config` → `/home/appuser/.config` | Any `gh`/`glab` sign-in (Step 5 below) |
+| `harness-claude-home` → `/home/appuser/.claude` | Bito Skills (installed once, Step 3 below) |
+| `harness-gh-config` → `/home/appuser/.config` | Any `gh`/`glab` sign-in (Step 4 below) |
 
 All three survive container restarts **and** upgrades to a newer image — see
 [Upgrading](#upgrading-to-a-newer-image) below.
@@ -184,8 +184,8 @@ does the recreate for you in one step.
   refuses to run headlessly as root), and the container self-heals file
   ownership on every start — you don't need to think about this at all, but it's
   why the entrypoint does a bit of setup before the app actually starts.
-- Want to run this **without Docker** instead (plain Python/Node on your machine)?
-  See [docs/README.md](docs/README.md).
+- **Docker is the only supported way to run this.** There's no native
+  Python/Node install path — everything you need is already in the image.
 
 ---
 

@@ -18,8 +18,5 @@ indexed-repos.txt        # your org's indexed repo list
 prompt_sets/             # your own prompts
 .claude.json.bak-*
 
-# Packaging output
-dist-package/
-
 # OS junk
 .DS_Store
